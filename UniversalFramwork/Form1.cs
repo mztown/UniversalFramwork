@@ -15,8 +15,8 @@ namespace UniversalFramwork
     {
         const int initLabelX = 12;
         const int initLabelY = 17;
-        const int incrementX = 30;
-        const int incrementY = 80;
+        const int incrementX = 80;
+        const int incrementY = 30;
         const int initButtonX = 71;
         const int initButtonY = 12;
         const int initWindowX = 175;
@@ -32,8 +32,6 @@ namespace UniversalFramwork
             public string UtilName;
             public string ClassName;
             public int Version;
-            public int buttonX;
-            public int buttonY;
             public FileInfo ffi;
             public Assembly ass;
         }
@@ -48,9 +46,8 @@ namespace UniversalFramwork
             functionMap = new Dictionary<string, functionDescription>();
             DirectoryInfo di = new DirectoryInfo(Application.StartupPath);
             FileInfo[] fi = di.GetFiles("*.dll");
-            int nextButtonLocationX = initButtonX+incrementX;
-            int nextButtonLocationY = initButtonY+incrementY;
-            int groupCount = 0;
+            //int nextButtonLocationX = initButtonX+incrementX;
+            //int nextButtonLocationY = initButtonY;
             int funcCount = 0;
             foreach (FileInfo ffi in fi)
             {
@@ -111,63 +108,8 @@ namespace UniversalFramwork
                 int version = (int)Vn.Invoke(obj, null);
                 desStruct.Version = version;
 
-
-                if (!utilName.Equals("Internal"))
-                {
-                    Button newb = new Button();
-                    newb.Name = className;
-                    newb.Text = utilName;
-                    newb.Size = new Size(75, 23);
-                    if (groupCount == 0)
-                    {   //Fast composer for when there's no group
-                        int sw = Size.Width;
-                        int sh = Size.Height;
-                        Size = new Size(sw+80, sh);
-                        newb.Location = new Point(nextButtonLocationX, nextButtonLocationY);
-                        nextButtonLocationX += 80;
-                    }
-                    else
-                    {
-                        int totalCount = getMaxWidthCount();
-                        int innerGroupCount = 0;
-                        int groupMaxX = 71;
-                        Label lbl=(Label)Controls.Find(groupName, false)[0];
-                        if (lbl == null)
-                        {
-                            //first element in the group
-                            Size = new Size(Size.Width, Size.Height + 30);
-                            groupCount++;
-                            Label lb = new Label();
-                            lb.Text = groupName;
-                            lb.Name = groupName;
-                            lb.Location = new Point(12, 17 + 30 * groupCount);
-                            Controls.Add(lb);
-                            //something
-                        }
-                        foreach(KeyValuePair<string,functionDescription> kvp in functionMap)
-                        {
-                            if (kvp.Value.GroupName.Equals(groupName))
-                            {
-                                innerGroupCount++;
-                                groupMaxX += 80;
-                            }
-                        }
-                        if (innerGroupCount > totalCount)
-                        {
-                            Size = new Size(Size.Width+80, Size.Height);
-                        }
-                        newb.Location = new Point(71 + innerGroupCount * 80, 12 + totalCount * 30);
-                    }
-                    newb.MouseClick += Newb_MouseClick;
-                    Controls.Add(newb);
-                    desStruct.buttonX = newb.Size.Width;
-                    desStruct.buttonY = newb.Size.Height;
-                }
-
                 desStruct.ffi = ffi;
                 desStruct.ass = ass;
-                desStruct.buttonX = nextButtonLocationX;
-                desStruct.buttonY = nextButtonLocationY;
 
                 functionMap.Add(className, desStruct);
             }
@@ -175,6 +117,7 @@ namespace UniversalFramwork
             {
                 MessageBox.Show("Requirement not met.Several components will not be loaded", "Loading Failiure");
             }
+            CreateButtons();
             return funcCount;
         }
         private void Newb_MouseClick(object sender, MouseEventArgs e)
@@ -198,6 +141,8 @@ namespace UniversalFramwork
         private bool requirementNotMet()
         {
             string unmetRequirement = "";
+            
+            List<string> erase=new List<string>();
             foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
             {
                 functionDescription desStruct = kvp.Value;
@@ -206,11 +151,28 @@ namespace UniversalFramwork
                 {
                     string reqName = rqp.Key;
                     int reqVern = rqp.Value;
+                    try
+                    {
+                        int tys=functionMap[reqName].Version;
+                    }
+                    catch(KeyNotFoundException)
+                    {
+                        unmetRequirement += "Function:" + kvp.Key + ".Required function:" + reqName + " donot exist.\r\n";
+                        erase.Add(kvp.Key);
+                        continue;
+                    }
                     if (reqVern > functionMap[reqName].Version)
                     {
                         unmetRequirement += "Function:" + kvp.Key + ".Required function:" + reqName + ".Required version:" + reqVern + ".Target version " + functionMap[reqName].Version + ".\r\n";
-                        functionMap.Remove(kvp.Key);
+                        erase.Add(kvp.Key);
                     }
+                }
+            }
+            if (erase.Count >= 0)
+            {
+                foreach (string st in erase)
+                {
+                    functionMap.Remove(st);
                 }
             }
             if (unmetRequirement.Equals(""))
@@ -221,26 +183,166 @@ namespace UniversalFramwork
                 return true;
             }
         }
-        private int getMaxWidthCount()
+        private int CreateButtons()
+        {
+            int totalCount=1;
+            int groupTotalCount=0;
+            Dictionary<int, int> ctd = getMaxWidthCount();
+            foreach(KeyValuePair<int,int> pv in ctd)
+            {
+                totalCount = pv.Key;
+                groupTotalCount = pv.Value;
+            }
+            Size = new Size(175+80*(totalCount), 83+30*groupTotalCount);
+            Dictionary<string, SortedList<int, Point>> labelPointMap = new Dictionary<string, SortedList<int, Point>>();
+            labelPointMap = addNewPoint(labelPointMap, "Internal");
+
+            foreach (KeyValuePair<string, functionDescription> rqp in functionMap)
+            {
+                //NEW METHOD
+                //===================================================================================================================
+                string utilName = rqp.Value.UtilName;
+                string className = rqp.Value.ClassName;
+                string groupName = rqp.Value.GroupName;
+                if (!utilName.Equals("Internal"))
+                {
+                    Button btn = new Button();
+                    btn.Name = className;
+                    btn.Text = utilName;
+                    btn.Size = new Size(75, 23);
+                    btn.Location = getNextPoint(labelPointMap, groupName);
+                    labelPointMap = addNewPoint(labelPointMap, groupName);
+                    if (btn.Location.X == 71)
+                    {
+                        Label lb = new Label();
+                        lb.Text = groupName;
+                        lb.Name = groupName;
+                        lb.Location = new Point(12, 17 + incrementY * (labelPointMap.Keys.Count-1));
+                        lb.Size = new Size(53, 12);
+                        Controls.Add(lb);
+                    }
+                    Controls.Add(btn);
+
+                }
+                //===================================================================================================================
+                //OLD METHOD
+                //===================================================================================================================
+                //int groupCount = 0;
+                //string utilName = rqp.Value.UtilName;
+                //string className = rqp.Value.ClassName;
+                //string groupName = rqp.Value.GroupName;
+                //if (!utilName.Equals("Internal"))
+                //{
+                //    Button newb = new Button();
+                //    newb.Name = className;
+                //    newb.Text = utilName;
+                //    newb.Size = new Size(75, 23);
+                //    int innerGroupCount = 0;
+                //    int groupMaxX = 71;
+                //    Label lbl;
+                //    try
+                //    {
+                //        lbl = (Label)Controls.Find(groupName, false)[0];
+                //    }
+                //    catch (IndexOutOfRangeException)
+                //    {
+                //        MS("新label"+groupName);
+                //        //first element in the group
+                //        groupCount++;
+                //        Label lb = new Label();
+                //        lb.Text = groupName;
+                //        lb.Name = groupName;
+                //        lb.Location = new Point(12, 17 + incrementY * groupCount);
+                //        Controls.Add(lb);
+                //        //something
+                //    }
+                //    foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
+                //    {
+                //        if (kvp.Value.GroupName.Equals(groupName))
+                //        {
+                //            innerGroupCount++;
+                //            groupMaxX += incrementX;
+                //        }
+                //    }
+                //    if (innerGroupCount > totalCount)
+                //    {
+                //        Size = new Size(Size.Width + incrementX, Size.Height);
+                //    }
+                //    newb.Location = new Point(71 + innerGroupCount * incrementX, 12 + totalCount * incrementY);
+                //    newb.MouseClick += Newb_MouseClick;
+                //    Controls.Add(newb);
+                //}
+            }
+            return 0;
+        }
+        private Dictionary<int,int> getMaxWidthCount()
         {
             Dictionary<string, int> groupCountDictionary = new Dictionary<string, int>();
+            int count=0;
+            int groups=0;
             foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
             {
-                if (groupCountDictionary.Keys.Contains(kvp.Key))
+                if (groupCountDictionary.Keys.Contains(kvp.Value.GroupName))
                 {
-                    groupCountDictionary[kvp.Key]=groupCountDictionary[kvp.Key]+1;
+                    groupCountDictionary[kvp.Value.GroupName] =groupCountDictionary[kvp.Value.GroupName] +1;
                 }
                 else
                 {
-                    groupCountDictionary.Add(kvp.Key, 1);
+                    if (!kvp.Value.GroupName.Equals("Internal"))
+                    {
+                        groupCountDictionary.Add(kvp.Value.GroupName, 1);
+                        groups++;
+                    }
                 }
             }
-            int count = 0;
             foreach(KeyValuePair<string,int> kvpc in groupCountDictionary)
             {
                 count = kvpc.Value > count ? kvpc.Value : count;
             }
-            return count;
+            Dictionary<int, int> rtd = new Dictionary<int, int>();
+            rtd.Add(count, groups);
+            return rtd;
+        }
+        private void MS(string ss)
+        {
+            MessageBox.Show(ss);
+        }
+        private Dictionary<string,SortedList<int,Point>> addNewPoint(Dictionary<string, SortedList<int, Point>> pointMap,String newGroupName)
+        {
+            if (pointMap.Keys.Contains(newGroupName))
+            {
+                SortedList<int, Point> pointList = pointMap[newGroupName];
+                pointList.Add(pointList.Keys.Count + 1, getNextPoint(pointMap, newGroupName));
+                pointMap[newGroupName] = pointList;
+                return pointMap;
+            }
+            else
+            {
+                SortedList<int, Point> pointList = new SortedList<int, Point>();
+                pointList.Add(1, getNextPoint(pointMap, newGroupName));
+                pointMap.Add(newGroupName, pointList);
+                return pointMap;
+            }
+        }
+        private Point getNextPoint(Dictionary<string, SortedList<int, Point>> pointMap, String nextGroupName)
+        {
+            if (pointMap.Keys.Contains(nextGroupName))
+            {
+                SortedList<int, Point> pointList = pointMap[nextGroupName];
+                Point pt = pointMap[nextGroupName][pointList.Keys.Count];
+                Point ptr = new Point(pt.X + 80, pt.Y);
+                return ptr;
+            }
+            else
+            {
+                Point ptr = new Point(71, 12 + 30 * (pointMap.Keys.Count));
+                return ptr;
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            refreshFunction();
         }
     }
 }
