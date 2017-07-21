@@ -40,16 +40,17 @@ namespace UniversalFramwork
         Dictionary<string, functionDescription> functionMap;
         public Form1()
         {
-            InitializeComponent();
-            functionMap = new Dictionary<string, functionDescription>();
+            refreshFunction();
         }
         public int refreshFunction()
         {
+            InitializeComponent();
+            functionMap = new Dictionary<string, functionDescription>();
             DirectoryInfo di = new DirectoryInfo(Application.StartupPath);
             FileInfo[] fi = di.GetFiles("*.dll");
             int nextButtonLocationX = initButtonX+incrementX;
             int nextButtonLocationY = initButtonY+incrementY;
-            int groupCount = 1;
+            int groupCount = 0;
             int funcCount = 0;
             foreach (FileInfo ffi in fi)
             {
@@ -104,10 +105,6 @@ namespace UniversalFramwork
 
                 MethodInfo GN = tp.GetMethod("GroupName");
                 string groupName = GN.Invoke(obj, null).ToString();
-                if (!groupName.Equals("Internal"))
-                {
-                    groupCount++;
-                }
                 desStruct.GroupName = groupName;
 
                 MethodInfo Vn = tp.GetMethod("Version");
@@ -120,15 +117,51 @@ namespace UniversalFramwork
                     Button newb = new Button();
                     newb.Name = className;
                     newb.Text = utilName;
-                    if (groupCount == 1)
-                    {
-
-                    }
                     newb.Size = new Size(75, 23);
-                    newb.Location = new Point(nextButtonLocationX, nextButtonLocationY);
-                    nextButtonLocationX = 81 + nextButtonLocationX;
+                    if (groupCount == 0)
+                    {   //Fast composer for when there's no group
+                        int sw = Size.Width;
+                        int sh = Size.Height;
+                        Size = new Size(sw+80, sh);
+                        newb.Location = new Point(nextButtonLocationX, nextButtonLocationY);
+                        nextButtonLocationX += 80;
+                    }
+                    else
+                    {
+                        int totalCount = getMaxWidthCount();
+                        int innerGroupCount = 0;
+                        int groupMaxX = 71;
+                        Label lbl=(Label)Controls.Find(groupName, false)[0];
+                        if (lbl == null)
+                        {
+                            //first element in the group
+                            Size = new Size(Size.Width, Size.Height + 30);
+                            groupCount++;
+                            Label lb = new Label();
+                            lb.Text = groupName;
+                            lb.Name = groupName;
+                            lb.Location = new Point(12, 17 + 30 * groupCount);
+                            Controls.Add(lb);
+                            //something
+                        }
+                        foreach(KeyValuePair<string,functionDescription> kvp in functionMap)
+                        {
+                            if (kvp.Value.GroupName.Equals(groupName))
+                            {
+                                innerGroupCount++;
+                                groupMaxX += 80;
+                            }
+                        }
+                        if (innerGroupCount > totalCount)
+                        {
+                            Size = new Size(Size.Width+80, Size.Height);
+                        }
+                        newb.Location = new Point(71 + innerGroupCount * 80, 12 + totalCount * 30);
+                    }
                     newb.MouseClick += Newb_MouseClick;
-                    this.Controls.Add(newb);
+                    Controls.Add(newb);
+                    desStruct.buttonX = newb.Size.Width;
+                    desStruct.buttonY = newb.Size.Height;
                 }
 
                 desStruct.ffi = ffi;
@@ -175,19 +208,39 @@ namespace UniversalFramwork
                     int reqVern = rqp.Value;
                     if (reqVern > functionMap[reqName].Version)
                     {
-                        unmetRequirement+="Function "+kvp.Key+" requires function "+reqName+" on version "+
-                        
+                        unmetRequirement += "Function:" + kvp.Key + ".Required function:" + reqName + ".Required version:" + reqVern + ".Target version " + functionMap[reqName].Version + ".\r\n";
+                        functionMap.Remove(kvp.Key);
                     }
                 }
             }
             if (unmetRequirement.Equals(""))
-            {
                 return false;
-            }
             else
             {
+                MessageBox.Show("Requirement(s) not met.Please record the following informations and contact the devoloper for tech support.\r\n" + unmetRequirement);
                 return true;
             }
+        }
+        private int getMaxWidthCount()
+        {
+            Dictionary<string, int> groupCountDictionary = new Dictionary<string, int>();
+            foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
+            {
+                if (groupCountDictionary.Keys.Contains(kvp.Key))
+                {
+                    groupCountDictionary[kvp.Key]=groupCountDictionary[kvp.Key]+1;
+                }
+                else
+                {
+                    groupCountDictionary.Add(kvp.Key, 1);
+                }
+            }
+            int count = 0;
+            foreach(KeyValuePair<string,int> kvpc in groupCountDictionary)
+            {
+                count = kvpc.Value > count ? kvpc.Value : count;
+            }
+            return count;
         }
     }
 }
