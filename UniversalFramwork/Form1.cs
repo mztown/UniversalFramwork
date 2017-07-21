@@ -187,13 +187,6 @@ namespace UniversalFramwork
         {
             int totalCount=1;
             int groupTotalCount=0;
-            Dictionary<int, int> ctd = getMaxWidthCount();
-            foreach(KeyValuePair<int,int> pv in ctd)
-            {
-                totalCount = pv.Key;
-                groupTotalCount = pv.Value;
-            }
-            Size = new Size(175+80*(totalCount), 83+30*groupTotalCount);
             Dictionary<string, SortedList<int, Point>> labelPointMap = new Dictionary<string, SortedList<int, Point>>();
             labelPointMap = addNewPoint(labelPointMap, "Internal");
 
@@ -273,32 +266,49 @@ namespace UniversalFramwork
                 //    Controls.Add(newb);
                 //}
             }
+            Dictionary<int, int> ctd = getMaxWidth(labelPointMap);
+            foreach (KeyValuePair<int, int> pv in ctd)
+            {
+                totalCount = pv.Key;
+                groupTotalCount = pv.Value;
+            }
+            Size = new Size(175 + 80 * (totalCount), 83 + 30 * groupTotalCount);
             return 0;
         }
-        private Dictionary<int,int> getMaxWidthCount()
+        private Dictionary<int,int> getMaxWidth(Dictionary<string, SortedList<int, Point>> pointMap)
         {
-            Dictionary<string, int> groupCountDictionary = new Dictionary<string, int>();
-            int count=0;
-            int groups=0;
-            foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
+
+            //Dictionary<string, int> groupCountDictionary = new Dictionary<string, int>();
+            int count = 0;
+            int groups = 0;
+            groups = pointMap.Keys.Count-1;
+            foreach(SortedList<int, Point> pointStrip in pointMap.Values)
             {
-                if (groupCountDictionary.Keys.Contains(kvp.Value.GroupName))
+                int ct = pointStrip.Count-1;
+                if (ct > count)
                 {
-                    groupCountDictionary[kvp.Value.GroupName] =groupCountDictionary[kvp.Value.GroupName] +1;
-                }
-                else
-                {
-                    if (!kvp.Value.GroupName.Equals("Internal"))
-                    {
-                        groupCountDictionary.Add(kvp.Value.GroupName, 1);
-                        groups++;
-                    }
+                    count = ct;
                 }
             }
-            foreach(KeyValuePair<string,int> kvpc in groupCountDictionary)
-            {
-                count = kvpc.Value > count ? kvpc.Value : count;
-            }
+            //foreach (KeyValuePair<string, functionDescription> kvp in functionMap)
+            //{
+            //    if (groupCountDictionary.Keys.Contains(kvp.Value.GroupName))
+            //    {
+            //        groupCountDictionary[kvp.Value.GroupName] =groupCountDictionary[kvp.Value.GroupName] +1;
+            //    }
+            //    else
+            //    {
+            //        if (!kvp.Value.UtilName.Equals("Internal"))
+            //        {
+            //            groupCountDictionary.Add(kvp.Value.GroupName, 1);
+            //            groups++;
+            //        }
+            //    }
+            //}
+            //foreach(KeyValuePair<string,int> kvpc in groupCountDictionary)
+            //{
+            //    count = kvpc.Value > count ? kvpc.Value : count;
+            //}
             Dictionary<int, int> rtd = new Dictionary<int, int>();
             rtd.Add(count, groups);
             return rtd;
